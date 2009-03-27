@@ -5,11 +5,6 @@ package MyClient;
 use strict;
 use base qw/ Kamaitachi::Client /;
 
-sub invoke_authConnection {
-    my $self = shift;
-    $self->diag("connection authorized.");
-}
-
 sub invoke_onStatus {
     my $self   = shift;
     my $packet = shift;
