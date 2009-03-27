@@ -5,7 +5,7 @@ package MyClient;
 use strict;
 use base qw/ Kamaitachi::Client /;
 
-sub invoke_onStatus {
+sub on_invoke_onStatus {
     my $self   = shift;
     my $packet = shift;
     my $args = $packet->args;
@@ -27,12 +27,12 @@ sub invoke_onStatus {
     $self->stop;
 }
 
-sub invoke_close {
+sub on_invoke_close {
     my $self = shift;
     $self->stop;
 }
 
-sub invoke__error {
+sub on_invoke__error {
     my $self = shift;
     $self->stop;
 }
@@ -78,7 +78,7 @@ my @packets = (
     ),
 );
 my $client = MyClient->new({
-    url => "rtmp://localhost/stream/live",
+    url => shift || "rtmp://localhost/stream/live",
     fh  => *STDOUT,
 });
 $client->run(@packets);

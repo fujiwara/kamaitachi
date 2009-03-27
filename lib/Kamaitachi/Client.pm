@@ -272,8 +272,8 @@ sub handle_packet_invoke {
         args   => $packet->args,
     });
     my $method = $packet->method;
-    if ( my $sub = $self->can("invoke_${method}") ) {
-        $self->diag("callback 'invoke_${method}'");
+    if ( my $sub = $self->can("on_invoke_${method}") ) {
+        $self->diag("callback 'on_invoke_${method}'");
         eval { $sub->( $self, $packet ) };
         if ($@) {
             diag "Error: $@";
