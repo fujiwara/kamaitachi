@@ -1,9 +1,10 @@
 #!/usr/bin/perl
 
 package MyClient;
-
-use strict;
-use base qw/ Kamaitachi::Client /;
+use Moose;
+extends "Kamaitachi::Client";
+__PACKAGE__->meta->make_immutable;
+no Moose;
 
 sub on_invoke_onStatus {
     my $self   = shift;
