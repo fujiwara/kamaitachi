@@ -19,6 +19,7 @@ example/lib/Service/Echo.pm
 example/lib/Service/LiveStreaming.pm
 example/lib/Service/LiveStreamingRecorder.pm
 example/server.pl
+example/client.pl
 inc/Module/Install.pm
 inc/Module/Install/Base.pm
 inc/Module/Install/Can.pm
@@ -54,6 +55,7 @@ lib/Kamaitachi/Service/StreamAudienceCounter.pm
 lib/Kamaitachi/Service/Streaming.pm
 lib/Kamaitachi/Session.pm
 lib/Kamaitachi/Socket.pm
+lib/Kamaitachi/Client.pm
 LICENSE
 Makefile.PL
 MANIFEST			This list of files
