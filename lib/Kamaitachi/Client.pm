@@ -48,22 +48,22 @@ has "parser" => (
     },
 );
 
-has io => (
+has "io" => (
     is  => "rw",
     isa => "Object",
 );
 
-has server_token => (
+has "server_token" => (
     is  => "rw",
     isa => "Str",
 );
 
-has client_token => (
+has "client_token" => (
     is  => "rw",
     isa => "Str",
 );
 
-has packets => (
+has "packets" => (
     is  => "rw",
     isa => "ArrayRef",
 );
@@ -100,7 +100,7 @@ has "timeout" => (
     default => 10,
 );
 
-has auto => (
+has "auto" => (
     is      => "rw",
     isa     => "Int",
     default => 1,
