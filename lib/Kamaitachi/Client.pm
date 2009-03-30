@@ -68,7 +68,7 @@ has "packets" => (
     isa => "ArrayRef",
 );
 
-has "packet_names" => (
+has "packet_names" => (           # XXX copied from Kamaitachi::Session
     is      => 'rw',
     isa     => 'ArrayRef',
     default => sub {[
@@ -109,6 +109,18 @@ has "auto" => (
 __PACKAGE__->meta->make_immutable;
 no Moose;
 
+=head1 NAME
+
+Kamaitachi::Client - Kamaitachi RTMP client
+
+=head1 DESCRIPTION
+
+See L<Kamaitachi>.
+
+=head1 METHODS
+
+=cut
+
 sub BUILD {
     my $self = shift;
 
@@ -132,6 +144,10 @@ sub BUILD {
     $self;
 }
 
+=head2 run
+
+=cut
+
 sub run {
     my $self    = shift;
     my @packets = @_;
@@ -141,18 +157,26 @@ sub run {
 
     Danga::Socket::Callback->new(
         handle         => $self->socket,
-        on_write_ready => sub { $self->connect(@_) },
+        on_write_ready => sub { $self->_connect(@_) },
         on_read_ready  => sub {},
     );
     Danga::Socket->SetLoopTimeout( $self->timeout * 1000 );
     Danga::Socket->EventLoop;
 }
 
+=head2 stop
+
+=cut
+
 sub stop {
     Danga::Socket->SetPostLoopCallback( sub { 0 } );
 }
 
-sub connect {
+=head2 connect
+
+=cut
+
+sub _connect {
     my $self   = shift;
     my $socket = shift;
 
@@ -162,10 +186,10 @@ sub connect {
     $socket->write(
         pack('C', 3) . $self->client_token
     );
-    $socket->{on_read_ready} = sub { $self->handshake(@_) };
+    $socket->{on_read_ready} = sub { $self->_handshake(@_) };
 }
 
-sub handshake {
+sub _handshake {
     my $self   = shift;
     my $socket = shift;
 
@@ -210,13 +234,13 @@ sub handshake {
         }
     }
     $self->logger->debug("send handshake packet.");
-    $socket->{on_read_ready} = sub { $self->recieve(@_) };
+    $socket->{on_read_ready} = sub { $self->_recieve(@_) };
     $socket->write( $self->server_token );
 
     $self->send_next_packet($socket);
 }
 
-sub recieve {
+sub _recieve {
     my $self   = shift;
     my $socket = shift;
     local $Data::Dumper::Indent = 1;
@@ -232,15 +256,15 @@ sub recieve {
         $self->logger->debug("got packet from server. type: '$type'");
         $self->logger->debug( hexdump $packet->data ) if $packet->data;
         if ( $type eq 'packet_invoke' ) {
-            $self->handle_packet_invoke($packet);
+            $self->_handle_packet_invoke($packet);
         }
         else {
-            $self->handle_packet($packet, $type);
+            $self->_handle_packet($packet, $type);
         }
     }
 }
 
-sub handle_packet {
+sub _handle_packet {
     my $self   = shift;
     my $packet = shift;
     my $type   = shift;
@@ -253,7 +277,7 @@ sub handle_packet {
     }
 }
 
-sub handle_packet_invoke {
+sub _handle_packet_invoke {
     my $self   = shift;
     my $packet = shift;
 
@@ -278,11 +302,19 @@ sub handle_packet_invoke {
     }
 }
 
+=head2 send_next_packet
+
+=cut
+
 sub send_next_packet {
     my $self    = shift;
     my $packet = shift @{ $self->packets } or return;
     $self->send_packet($packet);
 }
+
+=head2 send_packet
+
+=cut
 
 sub send_packet {
     my $self   = shift;
@@ -317,5 +349,23 @@ sub send_packet {
 
     $self->io->write($data);
 }
+
+=head1 AUTHOR
+
+Daisuke Murase <typester@cpan.org>
+
+Hideo Kimura <hide@cpan.org>
+
+FUJIWARA Shunichiro <fujiwara@cpan.org>
+
+=head1 COPYRIGHT
+
+This program is free software; you can redistribute
+it and/or modify it under the same terms as Perl itself.
+
+The full text of the license can be found in the
+LICENSE file included with this module.
+
+=cut
 
 1;
