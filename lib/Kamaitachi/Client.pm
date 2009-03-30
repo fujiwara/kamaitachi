@@ -1,6 +1,7 @@
 package Kamaitachi::Client;
 
 use Moose;
+with "MooseX::LogDispatch";
 use bytes;
 use Data::Dumper;
 use Data::Hexdumper qw/ hexdump /;
@@ -116,7 +117,7 @@ sub BUILD {
     my $url  = $self->url;
     my ( $host, $port, $app ) = ( $url =~ m{^(?:rtmp://)?(.+?):?(\d+)?/(.+)} );
     $port ||= 1935;
-    $self->diag("host: $host\nport: $port\napp: $app");
+    $self->logger->info("host: $host\nport: $port\napp: $app");
     $self->app($app);
 
     my $socket = IO::Socket::INET->new(
@@ -129,12 +130,6 @@ sub BUILD {
     $self->socket($socket);
 
     $self;
-}
-
-sub diag {
-    my $self = shift;
-    my $msg  = @_;
-    $self->fh && $self->fh->print("@_\n");
 }
 
 sub run {
@@ -161,7 +156,7 @@ sub connect {
     my $self   = shift;
     my $socket = shift;
 
-    $self->diag("on_write_ready");
+    $self->logger->debug("on_write_ready");
     my $packet = $self->client_token( pack('C', 0) x 0x600 );
     $socket->watch_write(0);
     $socket->write(
@@ -174,7 +169,7 @@ sub handshake {
     my $self   = shift;
     my $socket = shift;
 
-    $self->diag("on_read_ready handshake");
+    $self->logger->debug("on_read_ready handshake");
     my $io = $self->io;
 
     my $length = 0;
@@ -183,7 +178,7 @@ sub handshake {
         my $data = $$bref;
         my $l    = bytes::length($data);
         next if $l == 0;
-        $self->diag("recieved packet length $l.");
+        $self->logger->debug("recieved packet length $l.");
         $length += $l;
         $io->push($data);
         last if $length >= 0x600 + 0x600 + 1; # handshake packet size
@@ -191,30 +186,30 @@ sub handshake {
 
     if ( not $self->server_token ) {
         $bref = $io->read(0x600 + 1) or do {
-            $self->diag("read server token failed.");
+            $self->logger->error("read server token failed.");
             $self->stop;
             return;
         };
-        $self->diag("server token recieved.");
+        $self->logger->debug("server token recieved.");
         $self->server_token( substr $$bref, 1 );
     }
 
     if ( $self->server_token ) {
         $bref = $io->read(0x600) or do {
-            $self->diag("read client token failed.");
+            $self->logger->error("read client token failed.");
             $self->stop;
             return;
         };
-        $self->diag("client token recieved.");
+        $self->logger->debug("client token recieved.");
         my $token = $$bref;
         if ( $token eq $self->client_token ) {
-            $self->diag("client token validate ok.");
+            $self->logger->debug("client token validate ok.");
         }
         else {
             die "client token mismatch.";
         }
     }
-    $self->diag("send handshake packet.");
+    $self->logger->debug("send handshake packet.");
     $socket->{on_read_ready} = sub { $self->recieve(@_) };
     $socket->write( $self->server_token );
 
@@ -234,9 +229,8 @@ sub recieve {
 
     while ( my $packet = $io->get_packet ) {
         my $type = $self->packet_names->[ $packet->type ];
-        $self->diag("------------------------------------------------");
-        $self->diag("got packet from server. type: '$type'");
-        $self->diag( hexdump $packet->data ) if $packet->data;
+        $self->logger->debug("got packet from server. type: '$type'");
+        $self->logger->debug( hexdump $packet->data ) if $packet->data;
         if ( $type eq 'packet_invoke' ) {
             $self->handle_packet_invoke($packet);
         }
@@ -251,10 +245,10 @@ sub handle_packet {
     my $packet = shift;
     my $type   = shift;
     if ( my $sub = $self->can("on_${type}") ) {
-        $self->diag("callback 'on_${type}'");
+        $self->logger->debug("callback 'on_${type}'");
         eval { $sub->( $self, $packet ) };
         if ($@) {
-            $self->diag("Error: $@");
+            $self->logger->error("Error callback on_${type}: $@");
         }
     }
 }
@@ -266,17 +260,17 @@ sub handle_packet_invoke {
     $packet = Kamaitachi::Packet::Function->new_from_packet(
         packet => $packet,
     ) or return;
-    $self->diag( Dumper {
+    $self->logger->debug( Dumper {
         id     => $packet->id,
         method => $packet->method,
         args   => $packet->args,
     });
     my $method = $packet->method;
     if ( my $sub = $self->can("on_invoke_${method}") ) {
-        $self->diag("callback 'on_invoke_${method}'");
+        $self->logger->debug("callback 'on_invoke_${method}'");
         eval { $sub->( $self, $packet ) };
         if ($@) {
-            diag "Error: $@";
+            $self->logger->error("Error callback on_invoke_{$method}: $@");
         }
     }
     if ($self->auto) {
@@ -295,7 +289,6 @@ sub send_packet {
     my $packet = shift;
 
     my $data;
-    $self->diag("------------------------------------------------");
     if ( blessed $packet ) {
         my $type = $self->packet_names->[ $packet->type ];
         if ( $packet->can('method') ) {
@@ -303,24 +296,24 @@ sub send_packet {
                 $packet->args->[0]->{app}   = $self->app;
                 $packet->args->[0]->{tcUrl} = $self->url;
             }
-            $self->diag( sprintf("sending packet. type: '$type' method: '%s'",
+            $self->logger->debug( sprintf("sending packet. type: '$type' method: '%s'",
                          $packet->method ) );
         }
         else {
-            $self->diag( "sending packet. type: '$type'" );
+            $self->logger->debug( "sending packet. type: '$type'" );
         }
         $data = $packet->serialize;
     }
     elsif ( ref $packet eq 'ARRAY' ) {
-        $self->diag("sending raw packet (from array).");
+        $self->logger->debug("sending raw packet (from array).");
         $data = pack "C*", @$packet;
     }
     else {
-        $self->diag("sending raw packet.");
+        $self->logger->debug("sending raw packet.");
         $data = $packet;
     }
 
-    $self->diag( hexdump $data );
+    $self->logger->debug( hexdump $data );
 
     $self->io->write($data);
 }

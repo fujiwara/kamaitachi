@@ -9,9 +9,9 @@ sub on_invoke_onStatus {
     my $self   = shift;
     my $packet = shift;
     my $args = $packet->args;
-    $self->diag("onStatus.code=" . $args->[1]->{code});
+    $self->logger->debug("onStatus.code=" . $args->[1]->{code});
     if ( $args->[1]->{code} eq 'NetStream.Publish.Start' ) {
-        $self->diag("publish started successfuly.");
+        $self->logger->info("publish started successfuly.");
         $self->send_packet(
             Kamaitachi::Packet::Function->new(
                 number => 3,
@@ -22,7 +22,7 @@ sub on_invoke_onStatus {
         );
     }
     else {
-        $self->diag("publish started failed. exit");
+        $self->logger->error("publish started failed. exit");
     }
     $self->stop;
 }
