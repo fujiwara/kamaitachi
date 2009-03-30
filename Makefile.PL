@@ -13,6 +13,7 @@ requires 'Danga::Socket';
 requires 'Danga::Socket::Callback';
 requires 'Text::Glob';
 requires 'Path::Class';
+requires 'Data::Hexdumper';
 
 use_test_base;
 auto_include;

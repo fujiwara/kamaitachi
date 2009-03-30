@@ -77,8 +77,8 @@ my @packets = (
         args   => [ undef, "test" . time  ],
     ),
 );
+
 my $client = MyClient->new({
     url => shift || "rtmp://localhost/stream/live",
-    fh  => *STDOUT,
 });
 $client->run(@packets);

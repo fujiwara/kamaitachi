@@ -13,11 +13,6 @@ use Kamaitachi::IOStream;
 use Scalar::Util qw/ blessed /;
 
 our $VERSION = "0.2";
-our $FH;
-
-has "fh" => (
-    is => "rw",
-);
 
 has "url" => (
     is  => "rw",
@@ -123,13 +118,10 @@ See L<Kamaitachi>.
 
 sub BUILD {
     my $self = shift;
-
-    $FH = $self->fh;
-
     my $url  = $self->url;
     my ( $host, $port, $app ) = ( $url =~ m{^(?:rtmp://)?(.+?):?(\d+)?/(.+)} );
     $port ||= 1935;
-    $self->logger->info("host: $host\nport: $port\napp: $app");
+    $self->logger->info("host: $host port: $port app: $app");
     $self->app($app);
 
     my $socket = IO::Socket::INET->new(
@@ -171,10 +163,6 @@ sub run {
 sub stop {
     Danga::Socket->SetPostLoopCallback( sub { 0 } );
 }
-
-=head2 connect
-
-=cut
 
 sub _connect {
     my $self   = shift;
@@ -254,7 +242,7 @@ sub _recieve {
     while ( my $packet = $io->get_packet ) {
         my $type = $self->packet_names->[ $packet->type ];
         $self->logger->debug("got packet from server. type: '$type'");
-        $self->logger->debug( hexdump $packet->data ) if $packet->data;
+        $self->logger->debug( "\n". hexdump $packet->data ) if $packet->data;
         if ( $type eq 'packet_invoke' ) {
             $self->_handle_packet_invoke($packet);
         }
@@ -345,7 +333,7 @@ sub send_packet {
         $data = $packet;
     }
 
-    $self->logger->debug( hexdump $data );
+    $self->logger->debug( "\n" . hexdump $data );
 
     $self->io->write($data);
 }
